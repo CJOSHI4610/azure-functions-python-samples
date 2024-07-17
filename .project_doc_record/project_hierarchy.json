@@ -1,0 +1,525 @@
+{
+  "handson\\module0\\http-trigger-helloworld\\run.py": [],
+  "handson\\module1\\http-trigger-feed-to-queue\\run.py": [],
+  "scripts\\upload-blob-sas-token.py": [],
+  "v1functions\\blob-sas-token-generator\\function\\run.py": [
+    {
+      "type": "FunctionDef",
+      "name": "write_http_response",
+      "md_content": [
+        "**write_http_response**: The function of write_http_response is to generate an HTTP response with a specified status code, body content, and headers.\n\n**parameters**:\n- status: Represents the HTTP status code to be included in the response.\n- body_dict: A dictionary containing the body content of the response.\n\n**Code Description**:\nThe write_http_response function takes in a status code and a dictionary of body content. It then constructs a response dictionary with the provided status code, body content (converted to JSON format), and sets the \"Content-Type\" header to \"application/json\". The function then opens the output stream using the Azure Function environment variable _AZURE_FUNCTION_HTTP_OUTPUT_ENV_NAME and writes the JSON-serialized response dictionary to the output stream.\n\n**Note**:\n- Ensure that the _AZURE_FUNCTION_HTTP_OUTPUT_ENV_NAME environment variable is properly set before calling this function to avoid errors.\n- The body_dict parameter should be a dictionary that can be serialized to JSON format.\n\n**Output Example**:\n{\n    \"status\": 200,\n    \"body\": \"{\\\"key\\\": \\\"value\\\"}\",\n    \"headers\": {\n        \"Content-Type\": \"application/json\"\n    }\n}"
+      ],
+      "code_start_line": 55,
+      "code_end_line": 64,
+      "params": [
+        "status",
+        "body_dict"
+      ],
+      "have_return": true,
+      "code_content": "def write_http_response(status, body_dict):\n    return_dict = {\n        \"status\": status,\n        \"body\": json.dumps(body_dict),\n        \"headers\": {\n            \"Content-Type\": \"application/json\"\n        }\n    }\n    output = open(os.environ[_AZURE_FUNCTION_HTTP_OUTPUT_ENV_NAME], 'w')\n    output.write(json.dumps(return_dict))\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "generate_sas_token",
+      "md_content": [
+        "**generate_sas_token**: The function of generate_sas_token is to generate a Shared Access Signature (SAS) token for Azure Blob Storage.\n\n**parameters**:\n- storage_account: The name of the Azure Storage account.\n- storage_key: The key of the Azure Storage account.\n- permission: The permissions to be assigned to the SAS token.\n- token_ttl: The time-to-live for the SAS token.\n- container_name: The name of the container in the Azure Storage account.\n- blob_name (optional): The name of the blob in the container.\n\n**Code Description**:\nThe function first sets the start time and expiry time for the SAS token, constructs an input value based on the provided parameters, creates a base64 encoded signature using HMAC-SHA256, generates a query string with the required parameters, and then constructs the SAS token URL based on whether a blob name is provided or not. Finally, it returns a dictionary containing the SAS token and the URL.\n\n**Note**:\n- Ensure that the necessary permissions are correctly set to avoid unauthorized access.\n- Make sure to handle the SAS token securely as it provides access to the Azure Storage resources.\n\n**Output Example**:\n{\n    'token': 'sv=_AZURE_STORAGE_API_VERSION&ss=b&srt=o&sp=permission&se=expiry_time&st=start_time&spr=https&sig=base64_encoded_signature',\n    'url': 'https://storage_account.blob.core.windows.net/container_name/blob_name?query_string'\n}"
+      ],
+      "code_start_line": 66,
+      "code_end_line": 117,
+      "params": [
+        "storage_account",
+        "storage_key",
+        "permission",
+        "token_ttl",
+        "container_name",
+        "blob_name"
+      ],
+      "have_return": true,
+      "code_content": "def generate_sas_token (storage_account, storage_key, permission, token_ttl, container_name, blob_name = None ):\n    sp = permission\n    # Set start time to five minutes ago to avoid clock skew.\n    st= str((datetime.utcnow() - timedelta(minutes=5) ).strftime(\"%Y-%m-%dT%H:%M:%SZ\"))\n    se= str((datetime.utcnow() + timedelta(hours=token_ttl)).strftime(\"%Y-%m-%dT%H:%M:%SZ\"))\n    srt = 'o' if blob_name else 'co'\n\n    # Construct input value\n    inputvalue = \"{0}\\n{1}\\n{2}\\n{3}\\n{4}\\n{5}\\n{6}\\n{7}\\n{8}\\n\".format(\n        storage_account,  # 0. account name\n        sp,                   # 1. signed permission (sp)\n        'b',                  # 2. signed service (ss)\n        srt,                  # 3. signed resource type (srt)\n        st,                   # 4. signed start time (st)\n        se,                   # 5. signed expire time (se)\n        '',                   # 6. signed ip\n        'https',              # 7. signed protocol\n        _AZURE_STORAGE_API_VERSION)  # 8. signed version\n\n    # Create base64 encoded signature\n    hash =hmac.new(base64.b64decode(storage_key),inputvalue,hashlib.sha256).digest()\n    sig = base64.b64encode(hash)\n\n    querystring = {\n        'sv':  _AZURE_STORAGE_API_VERSION,\n        'ss':  'b',\n        'srt': srt,\n        'sp': sp,\n        'se': se,\n        'st': st,\n        'spr': 'https',\n        'sig': sig,\n    }\n    sastoken = urllib.urlencode(querystring)\n\n    sas_url = None\n    if blob_name:\n        sas_url = \"https://{0}.blob.core.windows.net/{1}/{2}?{3}\".format(\n            storage_account,\n            container_name,\n            blob_name,\n            sastoken)\n    else:\n        sas_url = \"https://{0}.blob.core.windows.net/{1}?{2}\".format(\n            storage_account,\n            container_name,\n            sastoken)\n\n    return {\n            'token': sastoken,\n            'url' : sas_url\n           }\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v1functions\\blob-trigger-blob-in-out-bindings\\function\\run.py": [],
+  "v1functions\\blob-trigger-blob-in-out-bindings\\function_zip\\run.py": [],
+  "v1functions\\cosmosdb-trigger-cosmosdb-in-binding\\function\\run.py": [],
+  "v1functions\\eventhub-trigger-table-out-bindings\\send-event.py": [],
+  "v1functions\\eventhub-trigger-table-out-bindings\\function\\run.py": [],
+  "v1functions\\http-trigger-dump-request\\function\\run.py": [
+    {
+      "type": "FunctionDef",
+      "name": "write_http_response",
+      "md_content": [
+        "**write_http_response**: The function of write_http_response is to construct an HTTP response with a specified status, body, and headers.\n\n**parameters**:\n- status: The HTTP status code to be included in the response.\n- body_dict: A dictionary containing the body content of the response.\n\n**Code Description**:\nThe write_http_response function takes in a status code and a dictionary representing the body content. It constructs a response dictionary with the provided status, body (converted to JSON format), and a fixed \"Content-Type\" header set to \"application/json\". The function then opens a file for writing the response using the environment variable _AZURE_FUNCTION_HTTP_OUTPUT_ENV_NAME and writes the JSON-serialized response dictionary to the file.\n\n**Note**:\n- Ensure that the environment variable _AZURE_FUNCTION_HTTP_OUTPUT_ENV_NAME is properly set before calling this function to avoid errors.\n- Make sure that the body_dict parameter is a valid dictionary that can be serialized to JSON.\n\n**Output Example**:\n{\n    \"status\": 200,\n    \"body\": \"{\\\"key\\\": \\\"value\\\"}\",\n    \"headers\": {\n        \"Content-Type\": \"application/json\"\n    }\n}"
+      ],
+      "code_start_line": 21,
+      "code_end_line": 30,
+      "params": [
+        "status",
+        "body_dict"
+      ],
+      "have_return": true,
+      "code_content": "def write_http_response(status, body_dict):\n    return_dict = {\n        \"status\": status,\n        \"body\": json.dumps(body_dict),\n        \"headers\": {\n            \"Content-Type\": \"application/json\"\n        }\n    }\n    output = open(os.environ[_AZURE_FUNCTION_HTTP_OUTPUT_ENV_NAME], 'w')\n    output.write(json.dumps(return_dict))\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v1functions\\queue-trigger-blob-in-binding\\function\\run.py": [],
+  "v1functions\\queue-trigger-cosmosdb-in-binding\\run.py": [
+    {
+      "type": "FunctionDef",
+      "name": "functions_process",
+      "md_content": [
+        "**functions_process**: The function of functions_process is to print the document passed as a parameter.\n\n**parameters**:\n- doc: Represents the document to be printed.\n\n**Code Description**:\nThe functions_process function takes a document as a parameter and prints it to the console. This function is called within the functions_main function in the run.py file of the queue-trigger-cosmosdb-in-binding project. In functions_main, the document is obtained from Azure Function Queue & CosmosDB binding, and the first document is extracted for processing. Subsequently, functions_process is invoked to print the document. Finally, the completion message is displayed.\n\n**Note**:\nEnsure that the document passed to functions_process is in a format that can be printed to the console."
+      ],
+      "code_start_line": 12,
+      "code_end_line": 13,
+      "params": [
+        "doc"
+      ],
+      "have_return": false,
+      "code_content": "def functions_process(doc):\n    print(doc)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v1functions\\queue-trigger-cosmosdb-in-binding\\run.py/functions_main"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "functions_main",
+      "md_content": [
+        "**functions_main**: The function of functions_main is to process a document obtained from Azure Function Queue & CosmosDB binding.\n\n**parameters**:\n- None\n\n**Code Description**:\nThe functions_main function serves as the entry point for the operation. It starts by retrieving a document from the Azure Function Queue & CosmosDB binding. If no documents are obtained, an error message is logged, and the program exits. Otherwise, the first document is extracted for processing. The document is then passed to the functions_process function for further handling. Once the document processing is complete, a message indicating the end of the operation is displayed.\n\n**Note**:\nEnsure that the document retrieved from Azure Function Queue & CosmosDB binding is in a suitable format for processing."
+      ],
+      "code_start_line": 15,
+      "code_end_line": 30,
+      "params": [],
+      "have_return": false,
+      "code_content": "def functions_main():\n    ## function's starting point\n    print (\"Starting the operation...\")\n    cosmosdb_data = open(os.environ['inputDocument']).read()\n    docs=json.loads(cosmosdb_data)\n    if len(docs) < 1:\n        errorlog(\"No documents obtained via Azure Function Queue & CosmosDB binding\")\n        sys.exit(0)\n    doc = docs[0]\n    \n    ## process doc\n    print (\"Processing document\")\n    functions_process(doc)\n\n    ## Output results if needed\n    print (\"The end of operation\")\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "v1functions\\queue-trigger-cosmosdb-in-binding\\run.py/functions_process"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    }
+  ],
+  "v1functions\\queue-trigger-sendgrid\\function\\run.py": [],
+  "v2functions\\blob-trigger-cosmosdb-out-binding\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process a blob trigger event, analyze the content of the blob using an external API, extract relevant information, and store the output data using Cosmos DB output binding.\n\n**parameters**: \n- myblob: Represents the input blob trigger containing the image data.\n- doc: Represents the output binding to store the analyzed data in Cosmos DB.\n\n**Code Description**:\nThe main function starts by logging information about the processed blob, including its name and size. It then reads the image data from the input blob and constructs an API URL for image analysis. The function sends a POST request to the API endpoint with the image data, retrieves and parses the response JSON, and extracts relevant tags from the response to create an output data object.\n\nSubsequently, the function logs the output data and sets it as a JSON document. Finally, it stores the output data in Cosmos DB using the provided output binding.\n\nIn case of any exceptions during the process, the function catches the exception and prints an error message.\n\n**Note**: \n- Ensure that the necessary API endpoint, headers, and parameters are correctly configured before executing the function.\n- Handle any potential errors or exceptions that may occur during the API request or data processing to maintain the function's robustness."
+      ],
+      "code_start_line": 22,
+      "code_end_line": 51,
+      "params": [
+        "myblob",
+        "doc"
+      ],
+      "have_return": false,
+      "code_content": "def main(myblob: func.InputStream, doc: func.Out[func.Document]):\n    logging.info(f\"Python blob trigger function processed blob \\n\"\n                 f\"Name: {myblob.name}\\n\"\n                 f\"Blob Size: {myblob.length} bytes\")\n\n    img_data = myblob.read()\n    try:\n        api_url = \"{0}vision/v1.0/analyze?{1}\".format(api_endpoint, params)\n        logging.info(\"API URL:{}\".format(api_url))\n\n        r = requests.post(api_url,\n                    headers=headers,\n                    data=img_data)\n\n        parsed = r.json()\n        logging.info(\"Response:\")\n        logging.info(json.dumps(parsed, sort_keys=True, indent=2))\n\n        # Set output data\n        outdata = {}\n        outdata['name'] = myblob.name\n        taglist = parsed['description']['tags']\n        outdata['text'] =  ' '.join(taglist)\n        logging.info(json.dumps(outdata, sort_keys=True, indent=2))\n\n        ## Store output data using Cosmos DB output binding\n        doc.set(func.Document.from_json(json.dumps(outdata)))\n    except Exception as e:\n        print('Error:')\n        print(e)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v2functions\\blob-trigger-watermark-blob-out-binding\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process a blob trigger event, apply a watermark to an image, and save the final composite image.\n\n**parameters**:\n- blobin: Represents the input image blob.\n- blobout: Represents the output blob where the watermarked image will be stored.\n- context: Provides context information for the function execution.\n\n**Code Description**:\nThe main function starts by logging information about the processed blob, including its name and size. It then reads the input image and watermark image, resizes the base image if necessary, sets the watermark size, and pastes the watermark onto the base image at a specified position. The function then displays the watermarked image, converts it to RGB format, and saves it as a JPEG in a memory stream. Finally, it sets the content of the output blob with the watermarked image data.\n\n**Note**:\n- Ensure that the watermark image (watermark.png) is available in the same directory as the function.\n- The function uses the Pillow library for image processing, so make sure it is installed in the environment.\n- Adjust the watermark position, size, and other parameters as needed for different use cases."
+      ],
+      "code_start_line": 19,
+      "code_end_line": 87,
+      "params": [
+        "blobin",
+        "blobout",
+        "context"
+      ],
+      "have_return": false,
+      "code_content": "def main(blobin: func.InputStream, blobout: func.Out[bytes], context: func.Context):\n    logging.info(f\"--- Python blob trigger function processed blob \\n\"\n                 f\"----- Name: {blobin.name}\\n\"\n                 f\"----- Blob Size: {blobin.length} bytes\")\n    \n    # Pillow calls blobin.read() so only\n    # pass in the image object\n    input_image = blobin\n    watermark_image = f'{context.function_directory}/watermark.png'\n\n    try:\n        base_image = Image.open(input_image)\n        watermark = Image.open(watermark_image)\n    except OSError as e:\n        print(f'EXCEPTION: Unable to read input as image. {e}')\n        sys.exit(254)\n    except Exception as e:\n        print(f'EXCEPTION: {e}')\n        sys.exit(255)\n\n    # Resize base image if too large\n    if base_image.width > FINAL_COMPOSITE_MAX_WIDTH or base_image.height > FINAL_COMPOSITE_MAX_HEIGHT:\n        if base_image.height > base_image.width:\n            factor = 900 / base_image.height\n        else:\n            factor = 900 / base_image.width\n        base_image = base_image.resize((int(base_image.width * factor), int(base_image.height * factor)))\n\n    # Set watermark size\n    relative_ws = round(base_image.width/WATERMARK_WIDTH_RATIO)\n    watermark_size = (relative_ws, relative_ws)\n    watermark.thumbnail(watermark_size, Image.ANTIALIAS)\n\n    # Watermark anchor (left, top)\n    position = (16, 16)\n    \n    img = Image.new('RGBA', (base_image.width, base_image.height), (0, 0, 0, 0))\n    img.paste(base_image, (0, 0))\n    # Watermark may not have an alpha channel,\n    # therefore no mask to apply\n    try:\n        img.paste(watermark, position, mask=watermark)\n    except ValueError:\n        img.paste(watermark, position)\n    # Render image on screen (save to a temp file and calls\n    # xv on Linux and Preview.app on Mac)\n    # We could improve this by drawing straight to a OpenCV\n    # canvas.. maybe.\n    img.show()\n\n    # Store final composite in a memory stream\n    img_byte_arr = io.BytesIO()\n    # Convert composite to RGB so we can save as JPEG\n    img.convert('RGB').save(img_byte_arr, format='JPEG')\n\n    # Optionally, save final composite to disk\n    # output_image = 'output.jpg'\n    # img.save(output_image)\n\n    # Write to output blob\n    #\n    # Use this to set blob content from a file instead:  \n    # with open(output_image, mode='rb') as file:\n    #     blobout.set(file.read())\n    #\n    # Set blob content from byte array in memory\n    blobout.set(img_byte_arr.getvalue())\n\n    logging.info(f\"----- Watermarking successful\")\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v2functions\\cosmos-trigger-cosmodb-output-binding\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "_rot13",
+      "md_content": [
+        "**_rot13**: The function of _rot13 is to perform the ROT13 encryption on a single character.\n\n**parameters**:\n- c: The character to be encrypted using ROT13.\n\n**Code Description**:\nThe _rot13 function takes a character as input and applies the ROT13 encryption algorithm to it. If the character is an uppercase letter, it shifts it by 13 positions cyclically within the uppercase alphabet. If the character is a lowercase letter, it does the same within the lowercase alphabet. Any other characters remain unchanged.\n\nThe function first checks if the character is an uppercase letter, then applies the ROT13 encryption formula to it. If not, it checks if the character is a lowercase letter and applies the encryption accordingly. If the character is neither an uppercase nor a lowercase letter, it returns the character unchanged.\n\nThe _rot13 function is called by the process_rot13 function in the same project. The process_rot13 function processes a string by applying the _rot13 function to each character in the string and then concatenating the results to form the final encrypted string.\n\n**Note**:\n- The _rot13 function only encrypts individual characters using the ROT13 algorithm.\n- It does not handle encryption for strings, and each character must be passed individually to the function.\n\n**Output Example**:\nIf _rot13('A') is called, the output will be 'N'.\nIf _rot13('z') is called, the output will be 'm'.\nIf _rot13('1') is called, the output will be '1'."
+      ],
+      "code_start_line": 5,
+      "code_end_line": 10,
+      "params": [
+        "c"
+      ],
+      "have_return": true,
+      "code_content": "def _rot13(c):\n    if 'A' <= c and c <= 'Z':\n        return chr((ord(c) - ord('A') + 13) % 26 + ord('A'))\n    if 'a' <= c and c <= 'z':\n        return chr((ord(c) - ord('a') + 13) % 26 + ord('a'))\n    return c\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\cosmos-trigger-cosmodb-output-binding\\__init__.py/process_rot13"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "process_rot13",
+      "md_content": [
+        "**process_rot13**: The function of process_rot13 is to apply the ROT13 encryption algorithm to each character in a given string and return the encrypted string.\n\n**parameters**:\n- s: The input string to be encrypted using ROT13.\n\n**Code Description**:\nThe process_rot13 function iterates over each character in the input string 's' and applies the _rot13 function to encrypt the character. It then concatenates all the encrypted characters to form the final encrypted string. The _rot13 function handles the encryption logic for individual characters within the string.\n\nThe _rot13 function is called within the process_rot13 function to perform character-level encryption. This function is designed to work specifically with the ROT13 encryption algorithm and processes each character independently.\n\n**Note**:\n- The process_rot13 function is designed to work with strings and encrypts each character individually using the ROT13 algorithm.\n- It is important to note that the function does not handle encryption for the entire string at once; each character must be passed to the function separately for encryption.\n\n**Output Example**:\nIf process_rot13('Hello') is called, the output will be 'Uryyb'."
+      ],
+      "code_start_line": 12,
+      "code_end_line": 14,
+      "params": [
+        "s"
+      ],
+      "have_return": true,
+      "code_content": "def process_rot13(s):\n    g = (_rot13(c) for c in s)\n    return ''.join(g)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\cosmos-trigger-cosmodb-output-binding\\__init__.py/main"
+      ],
+      "reference_who": [
+        "v2functions\\cosmos-trigger-cosmodb-output-binding\\__init__.py/_rot13"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    },
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process a list of documents by encrypting the text content using the ROT13 encryption algorithm and store the updated documents in a DocumentList for output using CosmosDB output binding.\n\n**parameters**:\n- docs: A DocumentList containing the input documents to be processed.\n- outdoc: An Out object used to store the output DocumentList for CosmosDB output binding.\n\n**Code Description**:\nThe main function iterates over each document in the input DocumentList 'docs'. It extracts the 'text' field from each document, encrypts it using the process_rot13 function, and creates a new document with the original 'name' field and the encrypted text. The new documents are then added to a new DocumentList 'newdocs'. Finally, the updated DocumentList is set to the 'outdoc' object for storage in CosmosDB using the CosmosDB output binding.\n\nThe main function relies on the process_rot13 function to perform the ROT13 encryption on the text content of each document. The encryption logic is applied character by character to ensure the security of the data.\n\n**Note**:\n- Ensure that the input documents in the DocumentList 'docs' have a 'name' and 'text' field for processing.\n- The output DocumentList containing the encrypted documents will be stored in CosmosDB using the CosmosDB output binding mechanism.\n- The process_rot13 function is crucial for encrypting the text content and plays a significant role in the data processing flow of the main function."
+      ],
+      "code_start_line": 16,
+      "code_end_line": 36,
+      "params": [
+        "docs",
+        "outdoc"
+      ],
+      "have_return": false,
+      "code_content": "def main(docs: func.DocumentList, outdoc: func.Out[func.Document]) -> str:\n\n    newdocs = func.DocumentList() \n    for doc in docs:\n        logging.info(doc.to_json())\n\n        ## Process Something\n        clear_text = doc[\"text\"]\n        encrypted_text= process_rot13(clear_text)        \n\n        ## Create a new doc (type:Dict)\n        newdoc_dict = {\n            \"name\": doc[\"name\"],\n            \"text\": encrypted_text \n        }\n\n        ## Append the new doc to DocumentList for output\n        newdocs.append(func.Document.from_dict(newdoc_dict))\n \n    ## Set the DocumentList to outdoc to store into CosmosDB using CosmosDB output binding\n    outdoc.set(newdocs)",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "v2functions\\cosmos-trigger-cosmodb-output-binding\\__init__.py/process_rot13"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    }
+  ],
+  "v2functions\\http-trigger-blob-sas-token\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "write_http_response",
+      "md_content": [
+        "**write_http_response**: The function of write_http_response is to generate an HTTP response with a specified status, body, and headers in JSON format.\n\n**parameters**:\n- status: An integer representing the HTTP status code.\n- body_dict: A dictionary containing the body of the HTTP response.\n\n**Code Description**: \nThe write_http_response function takes in a status code and a dictionary of the response body. It constructs a response dictionary with the provided status, body (converted to JSON format), and a fixed header specifying the content type as \"application/json\". The function then returns the response dictionary as a JSON string.\n\nIn the project, the write_http_response function is utilized within the main function of the HTTP trigger. It is used to generate various HTTP responses based on different conditions such as configuration errors, invalid requests, and successful token generation. The main function calls write_http_response to return appropriate responses to the HTTP client.\n\n**Note**: \n- Ensure that the status code provided is valid and corresponds to the HTTP status codes.\n- The body_dict parameter should be a dictionary that can be converted to JSON format.\n\n**Output Example**: \n```json\n{\n    \"status\": 200,\n    \"body\": \"{\\\"token\\\": \\\"example_token\\\", \\\"url\\\": \\\"example_url\\\"}\",\n    \"headers\": {\n        \"Content-Type\": \"application/json\"\n    }\n}\n```"
+      ],
+      "code_start_line": 55,
+      "code_end_line": 63,
+      "params": [
+        "status",
+        "body_dict"
+      ],
+      "have_return": true,
+      "code_content": "def write_http_response(status, body_dict):\n    return_dict = {\n        \"status\": status,\n        \"body\": json.dumps(body_dict),\n        \"headers\": {\n            \"Content-Type\": \"application/json\"\n        }\n    }\n    return json.dumps(return_dict)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\http-trigger-blob-sas-token\\__init__.py/main"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "generate_sas_token",
+      "md_content": [
+        "**generate_sas_token**: The function of generate_sas_token is to create a Shared Access Signature (SAS) token for Azure Blob Storage resources.\n\n**parameters**:\n- storage_account: The name of the Azure Storage account.\n- storage_key: The access key for the Azure Storage account.\n- permission: The permission level for the SAS token.\n- token_ttl: The time-to-live for the SAS token.\n- container_name: The name of the container in Azure Blob Storage.\n- blob_name (optional): The name of the blob in Azure Blob Storage.\n\n**Code Description**:\nThe `generate_sas_token` function generates a SAS token for accessing Azure Blob Storage resources. It constructs input values based on the provided parameters, creates a base64 encoded signature using HMAC-SHA256, and then generates a query string for the SAS token. Depending on the presence of the `blob_name` parameter, it constructs the SAS URL accordingly. The function returns a dictionary containing the SAS token and the corresponding URL.\n\nThis function is called within the `main` function in the same file to generate a SAS token for Azure Blob Storage resources based on the input parameters received through an HTTP request. The SAS token is then used to provide temporary access to the specified Azure Blob Storage resources.\n\n**Note**:\nEnsure that the necessary parameters are provided correctly to generate a valid SAS token.\nMake sure to handle the SAS token securely as it provides temporary access to Azure Blob Storage resources.\n\n**Output Example**:\n{\n    'token': 'sv=XXXX&ss=b&srt=o&sp=r&se=XXXX&st=XXXX&spr=https&sig=XXXX',\n    'url': 'https://storage_account.blob.core.windows.net/container_name/blob_name?sv=XXXX&ss=b&srt=o&sp=r&se=XXXX&st=XXXX&spr=https&sig=XXXX'\n}"
+      ],
+      "code_start_line": 69,
+      "code_end_line": 125,
+      "params": [
+        "storage_account",
+        "storage_key",
+        "permission",
+        "token_ttl",
+        "container_name",
+        "blob_name"
+      ],
+      "have_return": true,
+      "code_content": "def generate_sas_token (storage_account, storage_key, permission, token_ttl, container_name, blob_name = None ):\n    sp = permission\n    # Set start time to five minutes ago to avoid clock skew.\n    st= str((datetime.utcnow() - timedelta(minutes=5) ).strftime(\"%Y-%m-%dT%H:%M:%SZ\"))\n    se= str((datetime.utcnow() + timedelta(hours=token_ttl)).strftime(\"%Y-%m-%dT%H:%M:%SZ\"))\n    srt = 'o' if blob_name else 'co'\n\n    # Construct input value\n    inputvalue = \"{0}\\n{1}\\n{2}\\n{3}\\n{4}\\n{5}\\n{6}\\n{7}\\n{8}\\n\".format(\n        storage_account,  # 0. account name\n        sp,                   # 1. signed permission (sp)\n        'b',                  # 2. signed service (ss)\n        srt,                  # 3. signed resource type (srt)\n        st,                   # 4. signed start time (st)\n        se,                   # 5. signed expire time (se)\n        '',                   # 6. signed ip\n        'https',              # 7. signed protocol\n        _AZURE_STORAGE_API_VERSION)  # 8. signed version\n\n    # Create base64 encoded signature\n    hash =hmac.new(\n            base64.b64decode(storage_key),\n            inputvalue.encode(encoding='utf-8'),\n            hashlib.sha256\n        ).digest()\n\n    sig = base64.b64encode(hash)\n\n    querystring = {\n        'sv':  _AZURE_STORAGE_API_VERSION,\n        'ss':  'b',\n        'srt': srt,\n        'sp': sp,\n        'se': se,\n        'st': st,\n        'spr': 'https',\n        'sig': sig,\n    }\n    sastoken = urllib.parse.urlencode(querystring)\n\n    sas_url = None\n    if blob_name:\n        sas_url = \"https://{0}.blob.core.windows.net/{1}/{2}?{3}\".format(\n            storage_account,\n            container_name,\n            blob_name,\n            sastoken)\n    else:\n        sas_url = \"https://{0}.blob.core.windows.net/{1}?{2}\".format(\n            storage_account,\n            container_name,\n            sastoken)\n\n    return {\n            'token': sastoken,\n            'url' : sas_url\n           }\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\http-trigger-blob-sas-token\\__init__.py/main"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process an HTTP request, extract necessary parameters, generate a Shared Access Signature (SAS) token for Azure Blob Storage resources, and return an HTTP response with the generated token.\n\n**parameters**:\n- req: Represents the HTTP request received by the function.\n\n**Code Description**:\nThe main function begins by extracting the Azure Storage connection string parameters (storage account and key) from the environment variables. It then validates the HTTP method of the incoming request and proceeds to parse the request body to retrieve permission, container name, blob name, and token time-to-live (TTL) values. Based on the extracted parameters, it generates a SAS token using the generate_sas_token function. Finally, the function constructs an HTTP response containing the generated SAS token and returns it to the client.\n\nThe main function utilizes the write_http_response function to generate various HTTP responses for different scenarios such as configuration errors, invalid requests, and successful token generation. It ensures that the necessary parameters are provided in the request body and handles exceptions appropriately to return informative responses to the client.\n\n**Note**:\n- Ensure that the Azure Storage connection string is properly configured in the environment variables.\n- Validate the HTTP method of the incoming request to allow only POST requests.\n- Provide the required parameters (permission, container name) in the request body to generate a valid SAS token.\n\n**Output Example**:\n{\n    \"status\": 200,\n    \"body\": \"{\\\"token\\\": \\\"example_token\\\", \\\"url\\\": \\\"example_url\\\"}\",\n    \"headers\": {\n        \"Content-Type\": \"application/json\"\n    }\n}"
+      ],
+      "code_start_line": 127,
+      "code_end_line": 205,
+      "params": [
+        "req"
+      ],
+      "have_return": true,
+      "code_content": "def main(req: func.HttpRequest) -> str:\n    logging.info('Python HTTP trigger function processed a request.')\n\n    # Get Azure Storage Connection String\n    storage_account = None\n    storage_key = None\n\n    ll = connString.split(';')\n    for l in ll:\n        ss = l.split('=',1)\n        if len(ss) != 2:\n            continue\n        if ss[0] == 'AccountName':\n           storage_account = ss[1] \n        if ss[0] == 'AccountKey':\n           storage_key = ss[1] \n    if not storage_account or not storage_key:\n        return write_http_response(\n            400,\n            { 'message': 'Function configuration error: NO Azure Storage connection string found!' }\n        )  \n\n    # Check HTTP Mehtod\n    if req.method.lower() !=_ALLOWED_HTTP_METHOD.lower():\n        return write_http_response(\n            405, \n            { 'message': 'Only POST HTTP Method is allowed' }\n        )\n\n    permission = None\n    container_name = None\n    blob_name = None\n    try:\n        req_body = req.get_json()\n    except ValueError:\n        # Case: Empty body\n        return write_http_response(\n            400,\n            { 'message': 'Invalid HTTP request body' }\n        )\n    else:\n        # Case: Exception raised in get_json()\n        if not 'req_body' in locals():\n            return write_http_response(\n                400,\n                { 'message': 'Invalid HTTP request body' }\n            )\n        # Case: Invalid parameters\n        if not req_body.get('permission') or not req_body.get('container'):\n            return write_http_response(\n                400,\n                { 'message': 'Permission and container parameters must be included in HTTP request body' }\n            )\n\n    permission = req_body.get('permission')\n    container_name = req_body.get('container')\n    blob_name = req_body.get('blobname')\n    token_ttl = _SAS_TOKEN_DEFAULT_TTL\n    if req_body.get('ttl'):\n        token_ttl = int(req_body.get('ttl'))\n        if token_ttl < 1:\n            return write_http_response(\n                400,\n                { 'message': 'Token ttl must be digit and more than 0' }\n            )\n\n    # Generate SAS Token\n    token_dict = generate_sas_token(\n                        storage_account,\n                        storage_key, \n                        permission, \n                        token_ttl, \n                        container_name, \n                        blob_name \n                    )  \n    logging.info(\"Generated Token token=>{} url=>{}\".format(token_dict['token'], token_dict['url']))\n\n    # Write HTTP Response\n    return write_http_response(200, token_dict)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "v2functions\\http-trigger-blob-sas-token\\__init__.py/write_http_response",
+        "v2functions\\http-trigger-blob-sas-token\\__init__.py/generate_sas_token"
+      ],
+      "special_reference_type": [
+        false,
+        false
+      ]
+    }
+  ],
+  "v2functions\\http-trigger-dump-request\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process an HTTP request and return a JSON response containing information about the request.\n\n**parameters**:\n- req: Represents the HTTP request received by the function.\n\n**Code Description**:\nThe main function starts by logging a message indicating that the Python HTTP trigger function is processing a request. It then constructs a JSON response object containing details such as the HTTP method used, the URL of the request, the headers sent with the request, the parameters included in the request, and the body of the request after decoding it.\n\n**Note**:\n- This function is designed to work as an Azure Function that handles HTTP triggers.\n- The function assumes that the incoming request is in a valid format and can be processed accordingly.\n\n**Output Example**:\n{\n    \"method\": \"GET\",\n    \"url\": \"https://example.com/api\",\n    \"headers\": {\n        \"Content-Type\": \"application/json\",\n        \"Authorization\": \"Bearer token\"\n    },\n    \"params\": {\n        \"param1\": \"value1\",\n        \"param2\": \"value2\"\n    },\n    \"get_body\": \"{\\\"key\\\": \\\"value\\\"}\"\n}"
+      ],
+      "code_start_line": 5,
+      "code_end_line": 15,
+      "params": [
+        "req"
+      ],
+      "have_return": true,
+      "code_content": "def main(req: func.HttpRequest) -> func.HttpResponse:\n    logging.info('Python HTTP trigger function processed a request.')\n    return func.HttpResponse(\n        json.dumps({\n            'method': req.method,\n            'url': req.url,\n            'headers': dict(req.headers),\n            'params': dict(req.params),\n            'get_body': req.get_body().decode()\n        })\n    )\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v2functions\\http-trigger-onnx-model\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process an HTTP request containing an image, perform image style transfer using an ONNX model, and return the stylized image.\n\n**parameters**:\n- req: Represents the HTTP request containing the image.\n- context: Contains information about the function directory.\n\n**Code Description**:\nThe main function begins by logging the processing of the HTTP request. It then retrieves the body of the HTTP request, attempts to open the image from the request body, and handles any input errors by returning a specific HTTP response. If the image is successfully loaded, the function calls the run_inference function, passing the image and the function context as parameters. The stylized image returned by run_inference is then sent back as an HTTP response.\n\nIn the run_inference function, an ONNX model is loaded for image style transfer. The input image is preprocessed by resizing and converting it to the required format. Inference is run on the model to obtain the stylized image, which is then post-processed before being returned as a JPEG byte array.\n\n**Note**: Ensure that the input image is in a compatible format for style transfer. The ONNX model \"rain_princess.onnx\" must be available in the function directory for successful execution.\n\n**Output Example**:\nA stylized image in the form of a JPEG byte array."
+      ],
+      "code_start_line": 8,
+      "code_end_line": 23,
+      "params": [
+        "req",
+        "context"
+      ],
+      "have_return": true,
+      "code_content": "def main(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:\n    logging.info('Python HTTP trigger function processed a request.')\n\n    body = req.get_body()\n\n    try:\n        image = Image.open(io.BytesIO(body))\n    except IOError:\n        return func.HttpResponse(\n                \"Bad input. Unable to cast request body to an image format.\",\n                status_code=400\n        )\n\n    result = run_inference(image, context)\n\n    return func.HttpResponse(result)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "v2functions\\http-trigger-onnx-model\\__init__.py/run_inference"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    },
+    {
+      "type": "FunctionDef",
+      "name": "run_inference",
+      "md_content": [
+        "**run_inference**: The function of run_inference is to perform image style transfer using an ONNX model and return the stylized image.\n\n**parameters**:\n- image: The input image for style transfer.\n- context: The context object containing information about the function directory.\n\n**Code Description**:\nThe run_inference function first loads an ONNX model for image style transfer. It preprocesses the input image by resizing and converting it to the required format. Then, it runs inference on the model to obtain the stylized image. Postprocessing involves adjusting the image size and format before returning the stylized image as a JPEG byte array.\n\nIn the calling code in the main function, an HTTP request body containing an image is processed. The image is passed to the run_inference function along with the function context. The stylized image returned by run_inference is then sent back as an HTTP response.\n\n**Note**: Ensure the input image is in a compatible format for style transfer. The ONNX model \"rain_princess.onnx\" must be available in the function directory.\n\n**Output Example**:\nA stylized image in the form of a JPEG byte array."
+      ],
+      "code_start_line": 25,
+      "code_end_line": 72,
+      "params": [
+        "image",
+        "context"
+      ],
+      "have_return": true,
+      "code_content": "def run_inference(image, context):\n    # See https://github.com/onnx/models/tree/master/vision/style_transfer/fast_neural_style\n    # for implementation details\n    model_path = f'{context.function_directory}/rain_princess.onnx'\n    session = onnxruntime.InferenceSession(model_path)\n    metadata = session.get_modelmeta()\n    logging.info(f'Model metadata:\\n' +\n        f'    Graph name: {metadata.graph_name}\\n' +\n        f'    Model version: {metadata.version}\\n' +\n        f'    Producer: {metadata.producer_name}')\n\n    # Preprocess image\n    original_image_size = image.size[0], image.size[1]\n    logging.info('Preprocessing image...')\n    # Model expects a 224x224 shape input\n    image = image.resize((224, 224), Image.LANCZOS)\n    bands = image.getbands()\n    if bands == ('R', 'G', 'B'):\n        logging.info(f'Image is RGB. No conversion necessary.')\n    else:\n        logging.info(f'Image is {bands}, converting to RGB...')\n        image = image.convert('RGB')\n\n    x = np.array(image).astype('float32')\n    x = np.transpose(x, [2, 0, 1])\n    x = np.expand_dims(x, axis=0)\n\n    output_name = session.get_outputs()[0].name\n    input_name = session.get_inputs()[0].name\n    logging.info('Running inference on ONNX model...')\n    result = session.run([output_name], {input_name: x})[0][0]\n\n    # Postprocess image\n    result = np.clip(result, 0, 255)\n    result = result.transpose(1,2,0).astype(\"uint8\")\n    img = Image.fromarray(result)\n    max_width  = 800\n    height = int(max_width * original_image_size[1] / original_image_size[0])\n    # Upsample and correct aspect ratio for final image\n    img = img.resize((max_width, height), Image.BICUBIC)\n    \n    # Store inferred image as in memory byte array\n    img_byte_arr = io.BytesIO()\n    # Convert composite to RGB so we can return JPEG\n    img.convert('RGB').save(img_byte_arr, format='JPEG')\n    final_image = img_byte_arr.getvalue()\n\n    return final_image",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\http-trigger-onnx-model\\__init__.py/main"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v2functions\\queue-trigger-blob-in-out-binding\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "_rot13",
+      "md_content": [
+        "**_rot13**: The function of _rot13 is to perform the ROT13 substitution cipher on a single character.\n\n**parameters**:\n- c: A single character to be encoded using ROT13.\n\n**Code Description**:\nThe _rot13 function takes a single character as input and applies the ROT13 substitution cipher to it. If the character is an uppercase letter, it shifts it by 13 positions within the range of uppercase letters. If the character is a lowercase letter, it shifts it by 13 positions within the range of lowercase letters. If the character is not a letter, it remains unchanged.\n\nThe function first checks if the character is an uppercase letter, then applies the ROT13 transformation by calculating the new character based on the position shift. It does the same for lowercase letters. If the character is not a letter, it returns the character unchanged.\n\nThis function is a simple implementation of the ROT13 cipher, which is a type of Caesar cipher used for encryption.\n\n**Note**:\n- This function only works on single characters at a time.\n- The ROT13 cipher is a simple letter substitution cipher that replaces a letter with the 13th letter after it in the alphabet.\n\n**Output Example**:\nIf the input character is 'A', the output will be 'N'.\nIf the input character is 'm', the output will be 'z'."
+      ],
+      "code_start_line": 4,
+      "code_end_line": 9,
+      "params": [
+        "c"
+      ],
+      "have_return": true,
+      "code_content": "def _rot13(c):\n    if 'A' <= c and c <= 'Z':\n        return chr((ord(c) - ord('A') + 13) % 26 + ord('A'))\n    if 'a' <= c and c <= 'z':\n        return chr((ord(c) - ord('a') + 13) % 26 + ord('a'))\n    return c\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\queue-trigger-blob-in-out-binding\\__init__.py/process_rot13"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "process_rot13",
+      "md_content": [
+        "**process_rot13**: The function of process_rot13 is to apply the ROT13 substitution cipher to a given string.\n\n**parameters**:\n- s: A string to be encoded using ROT13.\n\n**Code Description**:\nThe process_rot13 function takes a string as input and iterates over each character in the string, applying the ROT13 substitution cipher using the _rot13 function. It generates a new string by replacing each character with its ROT13 equivalent. The function then returns the resulting encoded string.\n\nThe function utilizes a generator expression to apply the _rot13 function to each character in the input string. It then joins the transformed characters together to form the final encoded string.\n\n**Note**:\n- The ROT13 cipher is a simple letter substitution cipher that shifts letters by 13 positions in the alphabet.\n- This function works on entire strings by processing each character individually.\n\n**Output Example**:\nIf the input string is 'Hello', the output will be 'Uryyb'."
+      ],
+      "code_start_line": 11,
+      "code_end_line": 13,
+      "params": [
+        "s"
+      ],
+      "have_return": true,
+      "code_content": "def process_rot13(s):\n    g = (_rot13(c) for c in s)\n    return ''.join(g)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\queue-trigger-blob-in-out-binding\\__init__.py/main"
+      ],
+      "reference_who": [
+        "v2functions\\queue-trigger-blob-in-out-binding\\__init__.py/_rot13"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    },
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process a Queue Message, read a Blob file, encrypt the content using ROT13 encryption, and store the encrypted text in another Blob file.\n\n**parameters**:\n- myitem: Represents the Queue Message containing information like id, body, and expiration time.\n- inputblob: Represents the input Blob file to be read and encrypted.\n- outputblob: Represents the output Blob file where the encrypted text will be stored.\n\n**Code Description**:\nThe main function first prints the 'Item name' from the Queue Message, reads the content of the input Blob file, and then encrypts the text using the ROT13 encryption method by calling the process_rot13 function. The encrypted text is then written to the output Blob file. Each step is logged for monitoring purposes.\n\nThe function relies on the process_rot13 function to perform the encryption process. It interacts with the Queue Message, input Blob file, and output Blob file to handle the data flow accordingly.\n\n**Note**:\n- Ensure that the process_rot13 function is correctly implemented and accessible for the main function to execute the encryption process.\n- Verify the logging configuration to capture the necessary information during the execution of the main function.\n- Understand the data flow between the Queue Message and Blob files to ensure the correct processing and storage of information."
+      ],
+      "code_start_line": 16,
+      "code_end_line": 34,
+      "params": [
+        "myitem",
+        "inputblob",
+        "outputblob"
+      ],
+      "have_return": false,
+      "code_content": "def main(myitem: func.QueueMessage, \n        inputblob: func.InputStream, outputblob: func.Out[str]) -> None:\n    # 1. Print 'Item name' from Queue Message\n    logging.info('Queue item id:%s, body:%s, expiration_time:%s', \n            myitem.id, myitem.get_body().decode('utf-8'), myitem.expiration_time)\n\n    # 2. Read Blob file (the File name is the same as the item name from Queue message )\n    clear_text = inputblob.read().decode('utf-8')\n    logging.info(\"Clear text:%s'\", clear_text)\n\n    # 3. Process: Encrypt text with ROT13 encryption\n    encrypted_text= process_rot13(clear_text)\n    logging.info(\"Encrypted text:%s\", encrypted_text)\n\n    # 4. Write to Blob file:  Write encrypted_text to blob file\n    outputblob.set(encrypted_text)\n    # import io\n    # outputblob.set(io.StringIO(encrypted_text))\n    logging.info(\"Done storing encrypted text\")",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "v2functions\\queue-trigger-blob-in-out-binding\\__init__.py/process_rot13"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    }
+  ],
+  "v2functions\\sbqueue-trigger-sbqueue-out-binding\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to process a Service Bus Queue message by decoding the message body and setting the output message with the same body content.\n**parameters**:\n- msgIn: func.ServiceBusMessage (input parameter representing the incoming Service Bus message)\n- msgOut: func.Out[str] (output parameter for setting the outgoing message)\n\n**Code Description**:\nThe main function starts by decoding the body of the incoming Service Bus message using the 'utf-8' encoding. It then logs a message indicating that the Service Bus Queue message has been processed, including the content of the message body. Finally, the function sets the content of the outgoing message to be the same as the decoded body of the incoming message.\n\n**Note**:\nDevelopers using this function should ensure that the input message (msgIn) is a valid Service Bus message and that the output message (msgOut) is set accordingly with the desired content. Additionally, any specific logging configurations or message processing requirements should be considered within the function."
+      ],
+      "code_start_line": 4,
+      "code_end_line": 7,
+      "params": [
+        "msgIn",
+        "msgOut"
+      ],
+      "have_return": false,
+      "code_content": "def main(msgIn: func.ServiceBusMessage, msgOut: func.Out[str]):\n    body = msgIn.get_body().decode('utf-8')\n    logging.info(f'Processed Service Bus Queue message: {body}')\n    msgOut.set(body)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "v2functions\\timer-trigger-cosmosdb-output-binding\\__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "get_feed",
+      "md_content": [
+        "**get_feed**: The function of get_feed is to retrieve the latest feed entries from an RSS feed and format them into a list of dictionaries containing specific information such as ID, title, and date.\n\n**parameters**: This Function does not take any parameters.\n\n**Code Description**: The get_feed function utilizes the feedparser library to parse the RSS feed from the specified URL. It then extracts the 5 latest feed entries, generates a unique ID for each entry based on the link, and creates a dictionary for each entry containing the ID, title, and date. These dictionaries are appended to a list and returned as the output of the function.\n\nIn the calling function main within the __init__.py file, the get_feed function is invoked to retrieve the latest feed entries. The retrieved data is stored in the 'items' key of the outdata dictionary. Subsequently, the output data is converted to JSON format and stored using the Cosmos DB output binding provided by the outdoc object.\n\n**Note**: Ensure that the RSS_FEED_URL variable is defined and accessible within the scope of the get_feed function to successfully parse the RSS feed.\n\n**Output Example**:\n```json\n[\n    {\n        \"id\": \"3ca7b7b4f5c8b4e1c7b1d1f7a8e6d3a2\",\n        \"title\": \"Sample Feed Title 1\",\n        \"date\": \"2022-01-01\"\n    },\n    {\n        \"id\": \"8e6d3a23ca7b7b4f5c8b4e1c7b1d1f7a\",\n        \"title\": \"Sample Feed Title 2\",\n        \"date\": \"2022-01-02\"\n    },\n    ...\n]\n```"
+      ],
+      "code_start_line": 11,
+      "code_end_line": 24,
+      "params": [],
+      "have_return": true,
+      "code_content": "def get_feed():\n    feed=feedparser.parse(RSS_FEED_URL)\n    retdocs=[]\n    # Get 5 latest feeds\n    latestentries=feed['entries'][:5]\n    for entry in latestentries:\n        idhash = hashlib.sha1( entry[ 'link' ].encode('utf-8')).hexdigest()\n        retdoc= {\n            \"id\": idhash,\n            \"title\": entry[ 'title' ],\n            \"date\": entry[ 'updated' ]\n        }\n        retdocs.append(retdoc)\n    return retdocs\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "v2functions\\timer-trigger-cosmosdb-output-binding\\__init__.py/main"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to execute a timer-triggered Python function that retrieves blog feeds using the get_feed function and stores the output data in Cosmos DB using the provided outdoc object.\n\n**parameters**:\n- mytimer: Represents the timer trigger request.\n- outdoc: Represents the Cosmos DB output binding.\n\n**Code Description**: The main function first retrieves the current UTC timestamp and logs a message if the timer is past due. It then calls the get_feed function to fetch blog feeds, stores the data in the 'items' key of the outdata dictionary, converts the output to JSON format, and saves it using the Cosmos DB output binding provided by outdoc. Any exceptions encountered during this process are logged as errors.\n\nIn the get_feed function, the RSS feed is parsed from the specified URL using the feedparser library. The function extracts the 5 latest feed entries, generates a unique ID for each entry based on the link, and creates a dictionary for each entry containing the ID, title, and date. These dictionaries are appended to a list and returned as the function output.\n\nThe main function demonstrates the integration of timer triggers, external function calls, data processing, and output storage using Cosmos DB within an Azure Functions environment.\n\n**Note**: Ensure that the RSS_FEED_URL variable is defined and accessible within the scope of the get_feed function to successfully parse the RSS feed."
+      ],
+      "code_start_line": 26,
+      "code_end_line": 43,
+      "params": [
+        "mytimer",
+        "outdoc"
+      ],
+      "have_return": false,
+      "code_content": "def main(mytimer: func.TimerRequest, outdoc: func.Out[func.Document]):\n    utc_timestamp = datetime.datetime.utcnow().replace(\n        tzinfo=datetime.timezone.utc).isoformat()\n    if mytimer.past_due:\n        logging.info('The timer is past due!')\n    logging.info('Python timer trigger function ran at %s', utc_timestamp)\n\n    try:\n        # Get Blog feeds\n        outdata = {}\n        outdata['items'] = get_feed()\n        # logging.info(outdata)  # for debug\n\n        # Store output data using Cosmos DB output binding\n        outdoc.set(func.Document.from_json(json.dumps(outdata)))\n    except Exception as e:\n        logging.error('Error:')\n        logging.error(e)",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "v2functions\\timer-trigger-cosmosdb-output-binding\\__init__.py/get_feed"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    }
+  ]
+}
